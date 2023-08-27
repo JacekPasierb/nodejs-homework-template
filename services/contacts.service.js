@@ -1,7 +1,15 @@
 const Contact = require("../models/contact.model");
 
 const getAll = async (query) => {
-  return Contact.find(query);
+  const page = parseInt(query.page) || 1;
+  const limit = parseInt(query.limit) || 20;
+  const startIndex = (page - 1) * limit;
+  const filter = {};
+  
+  if (query.favorite === "true") {
+    filter.favorite = true;
+  }
+  return Contact.find(filter).skip(startIndex).limit(limit);
 };
 
 const getOne = async (id) => {

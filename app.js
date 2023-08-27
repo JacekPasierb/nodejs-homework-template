@@ -1,11 +1,13 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
+const mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 require("dotenv").config();
 
 const app = express();
 
-const contactsRouter = require("./routes/api/contacts.routes");
+const contactsRoutes = require("./routes/api/contacts.routes");
+const usersRoutes = require("./routes/api/auth.routes");
 
 const PORT = process.env.PORT || 4000;
 const uriDb = process.env.DATABASE_URL;
@@ -16,7 +18,10 @@ const connection = mongoose.connect(uriDb, {
 });
 
 app.use(express.json());
-app.use("/api", contactsRouter);
+app.use("/api", contactsRoutes);
+app.use("/api/users", usersRoutes);
+
+require("./config/config-passport");
 
 connection
   .then(() => {
