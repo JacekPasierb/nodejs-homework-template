@@ -1,5 +1,6 @@
 const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
+const { lock } = require("../routes/api/contacts.routes");
 
 require("dotenv").config();
 
@@ -108,7 +109,11 @@ const logout = async (req, res, next) => {
 };
 
 const getCurrent = async (req, res, next) => {
-  const { _id, email } = req.user;
+  const { _id, email, subscription } = req.user;
+
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   try {
     const user = await User.findById(_id);
     if (!user) {
@@ -123,6 +128,7 @@ const getCurrent = async (req, res, next) => {
           },
         });
     }
+
     res
       .status(200)
       .header("Content-Type", "application/json")
@@ -131,11 +137,43 @@ const getCurrent = async (req, res, next) => {
         code: 200,
         ResponseBody: {
           email: email,
-          subscription: "starter",
+          subscription: subscription,
         },
       });
   } catch (error) {
     next(error);
+  }
+};
+
+const updateSubscriptionUser = async (req, res, next) => {
+  const { subscription } = req.body;
+  const validSubscriptions = ["starter", "pro", "business"];
+
+  if (!validSubscriptions.includes(subscription)) {
+    return res.status(400).json({
+      status: "Bad Request",
+      code: 400,
+      ResponseBody: {
+        message:
+          "Invalid subscription value. It should be one of ['starter', 'pro', 'business'].",
+      },
+    });
+  }
+  const { _id: id } = req.user;
+  const user = await User.findByIdAndUpdate(
+    id,
+    { subscription },
+    { new: true }
+  ).exec();
+  if (!user) {
+    res.status(404);
+    throw new Error("Not found");
+  } else {
+    res.json({
+      status: "success",
+      code: 200,
+      subscription,
+    });
   }
 };
 
@@ -144,4 +182,5 @@ module.exports = {
   login,
   logout,
   getCurrent,
+  updateSubscriptionUser,
 };
