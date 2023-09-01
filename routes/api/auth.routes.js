@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authController = require("../../controller/auth.controller");
 const passport = require("passport");
+const { upload } = require("../../middlewares/upload");
 
 const auth = (req, res, next) => {
   passport.authenticate("jwt", { session: false }, (err, user) => {
@@ -27,5 +28,6 @@ router.post("/login", authController.login);
 router.get("/logout", auth, authController.logout);
 router.get("/current", auth, authController.getCurrent);
 router.patch("/", auth, authController.updateSubscriptionUser);
+router.patch("/avatars", auth,  upload.single("picture"), authController.updateAvatars )
 
 module.exports = router;
