@@ -23,6 +23,7 @@ const signup = async (req, res, next) => {
   }
   try {
     const newUser = new User({ email });
+    newUser.generateAvatar(); 
     newUser.setPassword(password);
     await newUser.save();
     res
@@ -109,7 +110,7 @@ const logout = async (req, res, next) => {
 };
 
 const getCurrent = async (req, res, next) => {
-  const { _id, email, subscription } = req.user;
+  const { _id, email, subscription, avatarURL } = req.user;
 
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -138,6 +139,7 @@ const getCurrent = async (req, res, next) => {
         ResponseBody: {
           email: email,
           subscription: subscription,
+          avatarURL:avatarURL,
         },
       });
   } catch (error) {
