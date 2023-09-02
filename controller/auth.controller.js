@@ -1,6 +1,6 @@
 const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
-const { lock } = require("../routes/api/contacts.routes");
+
 const path = require("path");
 const fs = require("fs/promises");
 
