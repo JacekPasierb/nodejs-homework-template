@@ -1,16 +1,33 @@
-const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
-
 const path = require("path");
 const fs = require("fs/promises");
-
-const config = require("../config/config");
 const Jimp = require("jimp");
+
+const User = require("../models/user.model");
+const config = require("../config/config");
+const {
+  SignupSchema,
+  LoginSchema,
+  subscriptionSchema,
+} = require("../helpers/validation");
 
 require("dotenv").config();
 
 const signup = async (req, res, next) => {
   const { email, password } = req.body;
+
+  const { error } = SignupSchema.validate({ email, password });
+
+  if (error) {
+    return res.status(400).json({
+      statusText: "Bad Request",
+      code: 400,
+      ResponseBody: {
+        message: "Błąd walidacji danych wejściowych",
+        details: error.details,
+      },
+    });
+  }
 
   const user = await User.findOne({ email });
 
@@ -26,6 +43,7 @@ const signup = async (req, res, next) => {
         },
       });
   }
+
   try {
     const newUser = new User({ email });
     newUser.generateAvatar();
@@ -48,19 +66,24 @@ const signup = async (req, res, next) => {
     next(error);
   }
 };
+
 const login = async (req, res, next) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
 
-  if (!email || !password) {
+  const { error } = LoginSchema.validate({ email, password });
+
+  if (error) {
     return res.status(400).json({
       statusText: "Bad Request",
       code: 400,
       ResponseBody: {
-        message: "Email or password missing",
+        message: "Błąd walidacji danych wejściowych",
+        details: error.details,
       },
     });
   }
+
+  const user = await User.findOne({ email });
 
   if (!user || !user.validPassword(password)) {
     return res.status(401).json({
@@ -167,18 +190,21 @@ const getCurrent = async (req, res, next) => {
 
 const updateSubscriptionUser = async (req, res, next) => {
   const { subscription } = req.body;
-  const validSubscriptions = ["starter", "pro", "business"];
 
-  if (!validSubscriptions.includes(subscription)) {
+  const { error } = subscriptionSchema.validate(subscription);
+
+  if (error) {
     return res.status(400).json({
-      status: "Bad Request",
+      statusText: "Bad Request",
       code: 400,
       ResponseBody: {
         message:
           "Invalid subscription value. It should be one of ['starter', 'pro', 'business'].",
+        details: error.details,
       },
     });
   }
+
   const { _id: id } = req.user;
   const user = await User.findByIdAndUpdate(
     id,
