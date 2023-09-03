@@ -52,16 +52,27 @@ const login = async (req, res, next) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
 
+if (!email || !password) {
+  return res.status(400).json({
+    statusText: "Bad Request",
+    code: 400,
+    ResponseBody: {
+      message: "Email or password missing",
+    },
+  });
+}
+
   if (!user || !user.validPassword(password)) {
     return res.status(401).json({
-      status: "unauthorized",
+      statusText: "Unauthorized",
       code: 401,
       ResponseBody: {
         message: "Email or password is wrong",
       },
     });
   }
-
+try {
+  
   const payload = {
     id: user._id,
   };
@@ -73,8 +84,8 @@ const login = async (req, res, next) => {
     .status(200)
     .header("Content-Type", "application/json")
     .json({
-      status: "created",
-      code: 201,
+      statusText: "OK",
+      code: 200,
       ResponseBody: {
         token,
         user: {
@@ -83,6 +94,9 @@ const login = async (req, res, next) => {
         },
       },
     });
+} catch (error) {
+  next(error);
+}
 };
 
 const logout = async (req, res, next) => {

@@ -1,9 +1,9 @@
-const mongoose = require("mongoose"); 
-const request = require("supertest"); 
-const gravatar = require("gravatar"); 
-const bcrypt = require("bcryptjs"); 
+const mongoose = require("mongoose");
+const request = require("supertest");
+const gravatar = require("gravatar");
+const bcrypt = require("bcryptjs");
 
-const app = require("../app"); 
+const app = require("../app");
 const User = require("../models/user.model");
 
 const databaseHost = process.env.DATABASE_URL;
@@ -23,7 +23,7 @@ const simulateSuccessfulLogin = async () => {
       email: "test11@o2.pl",
       password: "test1111",
     });
-console.log('re',response.body);
+
     return response.body;
   } catch (error) {
     throw new Error(error);
@@ -83,14 +83,13 @@ describe("User Login Tests", () => {
   });
 
   beforeEach(async () => {
-      loginResponse = await simulateSuccessfulLogin();
-      
+    loginResponse = await simulateSuccessfulLogin();
   });
 
-    test("Should return status 200 OK", () => {
-      console.log("login", loginResponse);
-    const { status, statusText } = loginResponse;
-    expect(status).toBe(200);
+  test("Should return status 200 OK", () => {
+    console.log("login", loginResponse);
+    const { code, statusText } = loginResponse;
+    expect(code).toBe(200);
     expect(statusText).toBe("OK");
   });
 
@@ -119,16 +118,18 @@ describe("User Login Tests", () => {
       unsuccessfulLoginResponse = await simulateUnsuccessfulLogin();
     });
 
-      test("Should return status 401 Unauthorized", () => {
-         console.log("log", unsuccessfulLoginResponse);
-      const { status, statusText } = unsuccessfulLoginResponse;
-      expect(status).toBe(401);
+    test("Should return status 401 Unauthorized", () => {
+      console.log("log", unsuccessfulLoginResponse);
+      const { code, statusText } = unsuccessfulLoginResponse;
+      expect(code).toBe(401);
       expect(statusText).toBe("Unauthorized");
     });
 
-    test("Should return error message 'Incorrect e-mail or password'", () => {
-      const {ResponseBody: { message }, } = unsuccessfulLoginResponse;
-      expect(message).toBe("Incorrect e-mail or password");
+    test("Should return error message 'Email or password is wrong'", () => {
+      const {
+        ResponseBody: { message },
+      } = unsuccessfulLoginResponse;
+      expect(message).toBe("Email or password is wrong");
     });
   });
 
@@ -139,10 +140,10 @@ describe("User Login Tests", () => {
       validationErrorResponse = await simulateValidationLoginError();
     });
 
-      test("Should return status 400 Bad Request", () => {
-        console.log('val',validationErrorResponse);
-      const { status, statusText } = validationErrorResponse;
-      expect(status).toBe(400);
+    test("Should return status 400 Bad Request", () => {
+      console.log("val", validationErrorResponse);
+      const {code, statusText } = validationErrorResponse;
+      expect(code).toBe(400);
       expect(statusText).toBe("Bad Request");
     });
 
