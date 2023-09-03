@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+
 mongoose.Promise = global.Promise;
 require("dotenv").config();
 const fs = require("node:fs").promises;
@@ -69,3 +70,6 @@ connection
     console.log(`Server not running. Error message: [${err}]`);
     process.exit(1);
   });
+
+module.exports = app;
+  
