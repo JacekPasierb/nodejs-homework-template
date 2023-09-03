@@ -52,15 +52,15 @@ const login = async (req, res, next) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
 
-if (!email || !password) {
-  return res.status(400).json({
-    statusText: "Bad Request",
-    code: 400,
-    ResponseBody: {
-      message: "Email or password missing",
-    },
-  });
-}
+  if (!email || !password) {
+    return res.status(400).json({
+      statusText: "Bad Request",
+      code: 400,
+      ResponseBody: {
+        message: "Email or password missing",
+      },
+    });
+  }
 
   if (!user || !user.validPassword(password)) {
     return res.status(401).json({
@@ -71,32 +71,31 @@ if (!email || !password) {
       },
     });
   }
-try {
-  
-  const payload = {
-    id: user._id,
-  };
+  try {
+    const payload = {
+      id: user._id,
+    };
 
-  const token = jwt.sign(payload, process.env.SECRET, { expiresIn: "1h" });
-  user.token = token;
-  await user.save();
-  res
-    .status(200)
-    .header("Content-Type", "application/json")
-    .json({
-      statusText: "OK",
-      code: 200,
-      ResponseBody: {
-        token,
-        user: {
-          email,
-          subscription: "starter", // TODO
+    const token = jwt.sign(payload, process.env.SECRET, { expiresIn: "1h" });
+    user.token = token;
+    await user.save();
+    res
+      .status(200)
+      .header("Content-Type", "application/json")
+      .json({
+        statusText: "OK",
+        code: 200,
+        ResponseBody: {
+          token,
+          user: {
+            email,
+            subscription: "starter", // TODO
+          },
         },
-      },
-    });
-} catch (error) {
-  next(error);
-}
+      });
+  } catch (error) {
+    next(error);
+  }
 };
 
 const logout = async (req, res, next) => {

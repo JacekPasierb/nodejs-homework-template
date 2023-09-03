@@ -10,7 +10,7 @@ const config = require("./config/config");
 const app = express();
 
 const contactsRoutes = require("./routes/api/contacts.routes");
-const usersRoutes = require("./routes/api/auth.routes");
+const usersRoutes = require("./routes/api/users.routes");
 const uploadRoutes = require("./routes/api/upload.routes");
 
 const PORT = process.env.PORT || 4000;
@@ -72,4 +72,3 @@ connection
   });
 
 module.exports = app;
-  

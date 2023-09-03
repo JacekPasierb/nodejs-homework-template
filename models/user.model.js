@@ -41,7 +41,7 @@ user.methods.validPassword = function (password) {
 };
 
 user.methods.generateAvatar = function () {
-  this.avatarURL = gravatar.url(this.email)
+  this.avatarURL = gravatar.url(this.email);
 };
 
 const User = mongoose.model("user", user, "users");

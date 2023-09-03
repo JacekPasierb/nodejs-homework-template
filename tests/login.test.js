@@ -142,7 +142,7 @@ describe("User Login Tests", () => {
 
     test("Should return status 400 Bad Request", () => {
       console.log("val", validationErrorResponse);
-      const {code, statusText } = validationErrorResponse;
+      const { code, statusText } = validationErrorResponse;
       expect(code).toBe(400);
       expect(statusText).toBe("Bad Request");
     });
