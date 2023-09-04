@@ -1,6 +1,3 @@
-const express = require("express");
-const router = express.Router();
-const authController = require("../../controller/auth.controller");
 const passport = require("passport");
 
 const auth = (req, res, next) => {
@@ -22,10 +19,6 @@ const auth = (req, res, next) => {
   })(req, res, next);
 };
 
-router.post("/signup", authController.signup);
-router.post("/login", authController.login);
-router.get("/logout", auth, authController.logout);
-router.get("/current", auth, authController.getCurrent);
-router.patch("/", auth, authController.updateSubscriptionUser);
-
-module.exports = router;
+module.exports = {
+  auth,
+};

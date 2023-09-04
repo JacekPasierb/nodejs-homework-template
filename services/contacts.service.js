@@ -5,7 +5,7 @@ const getAll = async (query) => {
   const limit = parseInt(query.limit) || 20;
   const startIndex = (page - 1) * limit;
   const filter = {};
-  
+
   if (query.favorite === "true") {
     filter.favorite = true;
   }

@@ -1,11 +1,33 @@
-const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
-const { lock } = require("../routes/api/contacts.routes");
+const path = require("path");
+const fs = require("fs/promises");
+const Jimp = require("jimp");
+
+const User = require("../models/user.model");
+const config = require("../config/config");
+const {
+  SignupSchema,
+  LoginSchema,
+  subscriptionSchema,
+} = require("../helpers/validation");
 
 require("dotenv").config();
 
 const signup = async (req, res, next) => {
   const { email, password } = req.body;
+
+  const { error } = SignupSchema.validate({ email, password });
+
+  if (error) {
+    return res.status(400).json({
+      statusText: "Bad Request",
+      code: 400,
+      ResponseBody: {
+        message: "Błąd walidacji danych wejściowych",
+        details: error.details,
+      },
+    });
+  }
 
   const user = await User.findOne({ email });
 
@@ -21,8 +43,10 @@ const signup = async (req, res, next) => {
         },
       });
   }
+
   try {
     const newUser = new User({ email });
+    newUser.generateAvatar();
     newUser.setPassword(password);
     await newUser.save();
     res
@@ -42,41 +66,59 @@ const signup = async (req, res, next) => {
     next(error);
   }
 };
+
 const login = async (req, res, next) => {
   const { email, password } = req.body;
+
+  const { error } = LoginSchema.validate({ email, password });
+
+  if (error) {
+    return res.status(400).json({
+      statusText: "Bad Request",
+      code: 400,
+      ResponseBody: {
+        message: "Błąd walidacji danych wejściowych",
+        details: error.details,
+      },
+    });
+  }
+
   const user = await User.findOne({ email });
 
   if (!user || !user.validPassword(password)) {
     return res.status(401).json({
-      status: "unauthorized",
+      statusText: "Unauthorized",
       code: 401,
       ResponseBody: {
         message: "Email or password is wrong",
       },
     });
   }
+  try {
+    const payload = {
+      id: user._id,
+    };
 
-  const payload = {
-    id: user._id,
-  };
-
-  const token = jwt.sign(payload, process.env.SECRET, { expiresIn: "1h" });
-  user.token = token;
-  await user.save();
-  res
-    .status(200)
-    .header("Content-Type", "application/json")
-    .json({
-      status: "created",
-      code: 201,
-      ResponseBody: {
-        token,
-        user: {
-          email,
-          subscription: "starter", // TODO
+    const token = jwt.sign(payload, process.env.SECRET, { expiresIn: "1h" });
+    user.token = token;
+    await user.save();
+    res
+      .status(200)
+      .header("Content-Type", "application/json")
+      .json({
+        statusText: "OK",
+        code: 200,
+        ResponseBody: {
+          token,
+          user: {
+            email,
+            subscription: "starter", // TODO
+          },
         },
-      },
-    });
+      });
+  } catch (error) {
+    next(error);
+  }
 };
 
 const logout = async (req, res, next) => {
@@ -109,7 +151,7 @@ const logout = async (req, res, next) => {
 };
 
 const getCurrent = async (req, res, next) => {
-  const { _id, email, subscription } = req.user;
+  const { _id, email, subscription, avatarURL } = req.user;
 
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -138,6 +180,7 @@ const getCurrent = async (req, res, next) => {
         ResponseBody: {
           email: email,
           subscription: subscription,
+          avatarURL: avatarURL,
         },
       });
   } catch (error) {
@@ -147,18 +190,21 @@ const getCurrent = async (req, res, next) => {
 
 const updateSubscriptionUser = async (req, res, next) => {
   const { subscription } = req.body;
-  const validSubscriptions = ["starter", "pro", "business"];
 
-  if (!validSubscriptions.includes(subscription)) {
+  const { error } = subscriptionSchema.validate(subscription);
+
+  if (error) {
     return res.status(400).json({
-      status: "Bad Request",
+      statusText: "Bad Request",
       code: 400,
       ResponseBody: {
         message:
           "Invalid subscription value. It should be one of ['starter', 'pro', 'business'].",
+        details: error.details,
       },
     });
   }
+
   const { _id: id } = req.user;
   const user = await User.findByIdAndUpdate(
     id,
@@ -177,10 +223,25 @@ const updateSubscriptionUser = async (req, res, next) => {
   }
 };
 
+const updateAvatars = async (req, res) => {
+  const { _id } = req.user;
+  const { path: tmpUpload, originalname } = req.file;
+  const filename = `${_id}_${originalname}`;
+  const resultUpload = path.join(config.AVATARS_PATH, filename);
+  await fs.rename(tmpUpload, resultUpload);
+  const avatar = await Jimp.read(resultUpload);
+  avatar.resize(250, 250);
+  avatar.write(resultUpload);
+  const avatarURL = path.join("avatars", filename);
+  await User.findByIdAndUpdate(_id, { avatarURL });
+  res.status(200).json({ avatarURL });
+};
+
 module.exports = {
   signup,
   login,
   logout,
   getCurrent,
   updateSubscriptionUser,
+  updateAvatars,
 };
