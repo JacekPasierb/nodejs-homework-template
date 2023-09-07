@@ -7,8 +7,10 @@ const { auth } = require("../../middlewares/auth");
 
 router.post("/signup", usersController.signup);
 router.post("/login", usersController.login);
+router.post("/verify", usersController.reverifyEmail);
 router.get("/logout", auth, usersController.logout);
 router.get("/current", auth, usersController.getCurrent);
+router.get("/verify/:verificationToken", usersController.verifyEmail);
 router.patch("/", auth, usersController.updateSubscriptionUser);
 router.patch(
   "/avatars",
