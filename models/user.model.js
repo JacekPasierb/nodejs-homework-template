@@ -6,6 +6,10 @@ const { Schema } = mongoose;
 
 const user = new Schema(
   {
+    firstName: {
+      type: String,
+      required: [true, "firstName is required"],
+    },
     password: {
       type: String,
       required: [true, "Password is required"],

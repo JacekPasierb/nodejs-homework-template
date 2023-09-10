@@ -4,58 +4,58 @@ const fs = require("fs/promises");
 const Jimp = require("jimp");
 const { v4: uuidv4 } = require("uuid");
 
-const User = require("../models/user.model");
-const config = require("../config/config");
+const service = require("../../services/users");
+const User = require("../../models/user.model");
+const config = require("../../config/config");
 const {
   SignupSchema,
   LoginSchema,
   subscriptionSchema,
-} = require("../helpers/validation");
-const { send } = require("../sendGrid");
+} = require("../../helpers/validation");
+const { send } = require("../../sendGrid");
+const { generateKeySync } = require("crypto");
 
 require("dotenv").config();
 
 const signup = async (req, res, next) => {
-  const { email, password } = req.body;
+  try {
+    const { firstName, email, password } = req.body;
+    const { error } = SignupSchema.validate({ firstName, email, password });
 
-  const { error } = SignupSchema.validate({ email, password });
-
-  if (error) {
-    return res.status(400).json({
-      statusText: "Bad Request",
-      code: 400,
-      ResponseBody: {
-        message: "Błąd walidacji danych wejściowych",
-        details: error.details,
-      },
-    });
-  }
-
-  const user = await User.findOne({ email });
-
-  if (user) {
-    return res
-      .status(409)
-      .header("Content-Type", "application/json")
-      .json({
-        status: "conflict",
-        code: 409,
+    if (error) {
+      return res.status(400).json({
+        statusText: "Bad Request",
+        code: 400,
         ResponseBody: {
-          message: "Email in use",
+          message: "Input data validation error",
         },
       });
-  }
+    }
 
-  try {
-    const newUser = new User({ email });
-    newUser.generateAvatar();
-    newUser.setPassword(password);
-    newUser.set("verificationToken", uuidv4());
+    const isUser = await service.findUserByNameOrEmail([
+      { firstName },
+      { email },
+    ]);
 
-    await newUser.save();
+    if (isUser) {
+      return res
+        .status(409)
+        .header("Content-Type", "application/json")
+        .json({
+          status: "conflict",
+          code: 409,
+          ResponseBody: {
+            message: "Firstname or Email in use",
+          },
+        });
+    }
+    const user = await service.createUser({ firstName, email });
 
-    const verificationToken = newUser.verificationToken;
-    console.log("verify", verificationToken);
+    user.generateAvatar();
+    user.setPassword(password);
+    user.set("verificationToken", uuidv4());
+    await user.save();
+    const verificationToken = user.verificationToken;
     send(email, verificationToken);
     res
       .status(201)
@@ -76,42 +76,40 @@ const signup = async (req, res, next) => {
 };
 
 const login = async (req, res, next) => {
-  const { email, password } = req.body;
-
-  const { error } = LoginSchema.validate({ email, password });
-
-  if (error) {
-    return res.status(400).json({
-      statusText: "Bad Request",
-      code: 400,
-      ResponseBody: {
-        message: "Błąd walidacji danych wejściowych",
-        details: error.details,
-      },
-    });
-  }
-
-  const user = await User.findOne({ email });
-
-  if (!user || !user.validPassword(password)) {
-    return res.status(401).json({
-      statusText: "Unauthorized",
-      code: 401,
-      ResponseBody: {
-        message: "Email or password is wrong",
-      },
-    });
-  }
-  if (!user.verify) {
-    return res.status(403).json({
-      statusText: "",
-      code: 403,
-      ResponseBody: {
-        message: "E-mail is not verified",
-      },
-    });
-  }
   try {
+    const { email, password } = req.body;
+    const { error } = LoginSchema.validate({ email, password });
+
+    if (error) {
+      return res.status(400).json({
+        statusText: "Bad Request",
+        code: 400,
+        ResponseBody: {
+          message: "Input data validation error",
+        },
+      });
+    }
+    const user = await service.findUser({ email });
+
+    if (!user || !user.validPassword(password)) {
+      return res.status(401).json({
+        statusText: "Unauthorized",
+        code: 401,
+        ResponseBody: {
+          message: "Email or password is wrong",
+        },
+      });
+    }
+    if (!user.verify) {
+      return res.status(403).json({
+        statusText: "",
+        code: 403,
+        ResponseBody: {
+          message: "E-mail is not verified",
+        },
+      });
+    }
+
     const payload = {
       id: user._id,
     };
@@ -139,9 +137,10 @@ const login = async (req, res, next) => {
 };
 
 const logout = async (req, res, next) => {
-  const id = req.user._id;
   try {
-    const user = await User.findById(id);
+    const { _id } = req.user;
+    const user = await service.findUser({ _id });
+
     if (!user) {
       return res
         .status(401)
@@ -157,7 +156,6 @@ const logout = async (req, res, next) => {
 
     user.token = null;
     await user.save();
-
     res.status(204).json({
       status: "no content",
       code: 204,
@@ -168,13 +166,14 @@ const logout = async (req, res, next) => {
 };
 
 const getCurrent = async (req, res, next) => {
-  const { _id, email, subscription, avatarURL } = req.user;
-
-  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
   try {
-    const user = await User.findById(_id);
+    const { _id, email, subscription, avatarURL } = req.user;
+
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    const user = await service.findUser({ _id });
+
     if (!user) {
       return res
         .status(401)
@@ -206,37 +205,37 @@ const getCurrent = async (req, res, next) => {
 };
 
 const updateSubscriptionUser = async (req, res, next) => {
-  const { subscription } = req.body;
+  try {
+    const { subscription } = req.body;
+    const { error } = subscriptionSchema.validate(subscription);
 
-  const { error } = subscriptionSchema.validate(subscription);
+    if (error) {
+      return res.status(400).json({
+        statusText: "Bad Request",
+        code: 400,
+        ResponseBody: {
+          message:
+            "Invalid subscription value. It should be one of ['starter', 'pro', 'business'].",
+          details: error.details,
+        },
+      });
+    }
 
-  if (error) {
-    return res.status(400).json({
-      statusText: "Bad Request",
-      code: 400,
-      ResponseBody: {
-        message:
-          "Invalid subscription value. It should be one of ['starter', 'pro', 'business'].",
-        details: error.details,
-      },
-    });
-  }
+    const { _id } = req.user;
+    const user = await service.updateUser(_id, { subscription });
 
-  const { _id: id } = req.user;
-  const user = await User.findByIdAndUpdate(
-    id,
-    { subscription },
-    { new: true }
-  ).exec();
-  if (!user) {
-    res.status(404);
-    throw new Error("Not found");
-  } else {
-    res.json({
-      status: "success",
-      code: 200,
-      subscription,
-    });
+    if (!user) {
+      res.status(404);
+      throw new Error("Not found");
+    } else {
+      res.json({
+        status: "success",
+        code: 200,
+        subscription,
+      });
+    }
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -250,15 +249,16 @@ const updateAvatars = async (req, res) => {
   avatar.resize(250, 250);
   avatar.write(resultUpload);
   const avatarURL = path.join("avatars", filename);
-  await User.findByIdAndUpdate(_id, { avatarURL });
+  await service.updateUser(_id, { avatarURL });
+
   res.status(200).json({ avatarURL });
 };
 
 const verifyEmail = async (req, res) => {
   try {
     const { verificationToken } = req.params;
-    const user = await User.findOne({ verificationToken });
-    console.log("weryfikcja - uzytkownik znaleziony to: ", user);
+    const user = await service.findUser({ verificationToken });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -278,7 +278,8 @@ const reverifyEmail = async (req, res) => {
     if (!email) {
       return res.status(400).json({ message: "missing required field email" });
     }
-    const user = await User.findOne({ email });
+    const user = await service.findUser({ email });
+
     if (user.verify) {
       return res.status(400).json({
         statusText: "Bad Request",
