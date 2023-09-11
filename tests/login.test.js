@@ -9,12 +9,12 @@ const User = require("../models/user.model");
 const databaseHost = process.env.DATABASE_URL;
 
 const testUser = {
-  username: "test",
+  firstName: "test",
   email: "test11@o2.pl",
   password: bcrypt.hashSync("test1111", bcrypt.genSaltSync()),
   avatarURL: gravatar.url("test11@o2.pl", { s: "250", r: "pg", d: "mp" }, true),
   pubId: Math.random(),
-  isVerified: true,
+  verify: true,
 };
 
 const simulateSuccessfulLogin = async () => {

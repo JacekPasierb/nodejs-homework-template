@@ -1,26 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const passport = require("passport");
-const contactsController = require("../../controller/contacts.controller");
-
-const auth = (req, res, next) => {
-  passport.authenticate("jwt", { session: false }, (err, user) => {
-    if (!user || err) {
-      return res
-        .status(401)
-        .header("Content-Type", "application/json")
-        .json({
-          status: "unauthorized",
-          code: 401,
-          ResponseBody: {
-            message: "Not authorized",
-          },
-        });
-    }
-    req.user = user;
-    next();
-  })(req, res, next);
-};
+const contactsController = require("../controller/contacts.controller");
+const { auth } = require("../middlewares/auth");
 
 router.get("/contacts", auth, contactsController.get);
 

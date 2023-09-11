@@ -1,5 +1,5 @@
 const path = require("node:path");
-const config = require("../config/config");
+const config = require("../../config/config");
 const fs = require("node:fs").promises;
 
 const uploadFile = async (req, res, next) => {
@@ -13,7 +13,7 @@ const uploadFile = async (req, res, next) => {
   }
   res.json({
     description,
-    message: "Plik załadowany pomyślnie",
+    message: "File uploaded successfully",
     status: 200,
   });
 };
