@@ -1,6 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
-
+const morgan = require("morgan");
 mongoose.Promise = global.Promise;
 require("dotenv").config();
 const fs = require("node:fs").promises;
@@ -8,6 +8,7 @@ const createError = require("http-errors");
 
 const config = require("./config/config");
 const app = express();
+const formatsLogger = app.get("env") === "development" ? "dev" : "short";
 
 const contactsRoutes = require("./routes/api/contacts.routes");
 const usersRoutes = require("./routes/api/users.routes");
@@ -21,6 +22,7 @@ const connection = mongoose.connect(uriDb, {
   useUnifiedTopology: true,
 });
 
+app.use(morgan(formatsLogger));
 app.use(express.json());
 app.use("/api", contactsRoutes, uploadRoutes);
 app.use("/api/users", usersRoutes);
