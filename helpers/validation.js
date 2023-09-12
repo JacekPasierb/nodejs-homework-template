@@ -31,7 +31,15 @@ const LoginSchema = Joi.object({
   }),
 });
 
-const subscriptionSchema = Joi.string().valid("starter", "pro", "business");
+const subscriptionSchema = Joi.string()
+  .valid("starter", "pro", "business")
+  .required()
+  .messages({
+    "string.base": "Subscription must be a string",
+    "any.required": "Missing field subscription",
+    "any.only":
+      "Subscription must be one of these values - [starter, pro, business]",
+  });
 
 module.exports = {
   SignupSchema,
