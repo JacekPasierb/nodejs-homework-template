@@ -14,6 +14,14 @@ const {
 } = require("../../helpers/validation");
 const { send } = require("../../sendGrid");
 const { generateKeySync } = require("crypto");
+const {
+  handleValidationError,
+  handleUserConflictError,
+  handleUserUnauthorizedError,
+  handleUserNotVerifiedEmail,
+  handleUserNotFoundError,
+  handleUserVerifiedEmailError,
+} = require("../../helpers/handleErrors");
 
 require("dotenv").config();
 
@@ -23,13 +31,7 @@ const signup = async (req, res, next) => {
     const { error } = SignupSchema.validate({ firstName, email, password });
 
     if (error) {
-      return res.status(400).json({
-        statusText: "Bad Request",
-        code: 400,
-        ResponseBody: {
-          message: "Input data validation error",
-        },
-      });
+      return handleValidationError(error, res);
     }
 
     const isUser = await service.findUserByNameOrEmail([
@@ -38,16 +40,7 @@ const signup = async (req, res, next) => {
     ]);
 
     if (isUser) {
-      return res
-        .status(409)
-        .header("Content-Type", "application/json")
-        .json({
-          status: "conflict",
-          code: 409,
-          ResponseBody: {
-            message: "Firstname or Email in use",
-          },
-        });
+      return handleUserConflictError(res, isUser, firstName, email);
     }
     const user = await service.createUser({ firstName, email });
 
@@ -71,6 +64,7 @@ const signup = async (req, res, next) => {
         },
       });
   } catch (error) {
+    console.error(error.message);
     next(error);
   }
 };
@@ -81,33 +75,15 @@ const login = async (req, res, next) => {
     const { error } = LoginSchema.validate({ email, password });
 
     if (error) {
-      return res.status(400).json({
-        statusText: "Bad Request",
-        code: 400,
-        ResponseBody: {
-          message: "Input data validation error",
-        },
-      });
+      return handleValidationError(error, res);
     }
     const user = await service.findUser({ email });
 
     if (!user || !user.validPassword(password)) {
-      return res.status(401).json({
-        statusText: "Unauthorized",
-        code: 401,
-        ResponseBody: {
-          message: "Email or password is wrong",
-        },
-      });
+      return handleUserUnauthorizedError(res, "Email or password is wrong");
     }
     if (!user.verify) {
-      return res.status(403).json({
-        statusText: "",
-        code: 403,
-        ResponseBody: {
-          message: "E-mail is not verified",
-        },
-      });
+      return handleUserNotVerifiedEmail(res);
     }
 
     const payload = {
@@ -142,16 +118,7 @@ const logout = async (req, res, next) => {
     const user = await service.findUser({ _id });
 
     if (!user) {
-      return res
-        .status(401)
-        .header("Content-Type", "application/json")
-        .json({
-          status: "Unauthorized",
-          code: 401,
-          ResponseBody: {
-            message: "Not authorized",
-          },
-        });
+      return handleUserUnauthorizedError(res, "Not authorized");
     }
 
     user.token = null;
@@ -175,16 +142,7 @@ const getCurrent = async (req, res, next) => {
     const user = await service.findUser({ _id });
 
     if (!user) {
-      return res
-        .status(401)
-        .header("Content-Type", "application/json")
-        .json({
-          status: "Unauthorized",
-          code: 401,
-          ResponseBody: {
-            message: "Not authorized",
-          },
-        });
+      return handleUserUnauthorizedError(res, "Not authorized");
     }
 
     res
@@ -210,30 +168,19 @@ const updateSubscriptionUser = async (req, res, next) => {
     const { error } = subscriptionSchema.validate(subscription);
 
     if (error) {
-      return res.status(400).json({
-        statusText: "Bad Request",
-        code: 400,
-        ResponseBody: {
-          message:
-            "Invalid subscription value. It should be one of ['starter', 'pro', 'business'].",
-          details: error.details,
-        },
-      });
+      return handleValidationError(error, res);
     }
 
     const { _id } = req.user;
-    const user = await service.updateUser(_id, { subscription });
+    await service.updateUser(_id, { subscription });
 
-    if (!user) {
-      res.status(404);
-      throw new Error("Not found");
-    } else {
+  
       res.json({
         status: "success",
         code: 200,
         subscription,
       });
-    }
+    
   } catch (error) {
     next(error);
   }
@@ -260,7 +207,7 @@ const verifyEmail = async (req, res) => {
     const user = await service.findUser({ verificationToken });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return handleUserNotFoundError(res);
     }
     user.set("verify", true);
     user.verificationToken = null;
@@ -281,13 +228,7 @@ const reverifyEmail = async (req, res) => {
     const user = await service.findUser({ email });
 
     if (user.verify) {
-      return res.status(400).json({
-        statusText: "Bad Request",
-        code: 200,
-        ResponseBody: {
-          message: "Verification has already been passed",
-        },
-      });
+      return handleUserVerifiedEmailError(res);
     }
     const verificationToken = user.verificationToken;
     send(email, verificationToken);

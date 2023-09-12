@@ -8,10 +8,11 @@ const findUser = async (query) => {
         console.error(error.message);
     }
 }
-const findUserByNameOrEmail = async (query) => {
+const findUserByNameOrEmail = async (query) => {    
   try {
     return await User.findOne({ $or: query });
   } catch (error) {
+    
     console.error(error.message);
   }
 };
